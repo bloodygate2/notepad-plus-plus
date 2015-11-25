@@ -6,7 +6,7 @@
 // as published by the Free Software Foundation; either
 // version 2 of the License, or (at your option) any later version.
 //
-// Note that the GPL places important restrictions on "derived works", yet
+// Note that the GPL places important restrictions on "derived works", yeta
 // it does not provide a detailed definition of that term.  To avoid
 // misunderstandings, we consider an application to constitute a
 // "derivative work" for the purpose of this license if it does any of the
