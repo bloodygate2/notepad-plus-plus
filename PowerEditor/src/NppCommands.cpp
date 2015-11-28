@@ -42,8 +42,6 @@ using namespace std;
 
 void Notepad_plus::macroPlayback(Macro macro)
 {
-	LongRunningOperation op;
-
 	_pEditView->execute(SCI_BEGINUNDOACTION);
 
 	for (Macro::iterator step = macro.begin(); step != macro.end(); ++step)
@@ -639,11 +637,7 @@ void Notepad_plus::command(int id)
 
 		case IDM_MACRO_PLAYBACKRECORDEDMACRO:
 			if (!_recordingMacro) // if we're not currently recording, then playback the recorded keystrokes
-			{
-				_playingBackMacro = true;
 				macroPlayback(_macro);
-				_playingBackMacro = false;
-			}
 			break;
 
 		case IDM_MACRO_RUNMULTIMACRODLG :
@@ -1704,13 +1698,13 @@ void Notepad_plus::command(int id)
 		case IDM_FORMAT_TOUNIX:
 		case IDM_FORMAT_TOMAC:
 		{
-			EolType newFormat = (id == IDM_FORMAT_TODOS)
-				? EolType::windows
-				: (id == IDM_FORMAT_TOUNIX) ? EolType::unix : EolType::macos;
+			FormatType newFormat = (id == IDM_FORMAT_TODOS)
+				? FormatType::windows
+				: (id == IDM_FORMAT_TOUNIX) ? FormatType::unix : FormatType::macos;
 
 			Buffer* buf = _pEditView->getCurrentBuffer();
-			buf->setEolFormat(newFormat);
-			_pEditView->execute(SCI_CONVERTEOLS, static_cast<int>(buf->getEolFormat()));
+			buf->setFormat(newFormat);
+			_pEditView->execute(SCI_CONVERTEOLS, static_cast<int>(buf->getFormat()));
 			break;
 		}
 
@@ -1802,7 +1796,7 @@ void Notepad_plus::command(int id)
 			}
 			break;
 		}
-
+		//This is where the convert to encoding is being carried out
         case IDM_FORMAT_WIN_1250 :
         case IDM_FORMAT_WIN_1251 :
         case IDM_FORMAT_WIN_1252 :
@@ -1911,120 +1905,130 @@ void Notepad_plus::command(int id)
 		case IDM_FORMAT_CONV2_UCS_2BE:
 		case IDM_FORMAT_CONV2_UCS_2LE:
 		{
+			
 			int idEncoding = -1;
+			Buffer *first = _pEditView->getCurrentBuffer();
 			Buffer *buf = _pEditView->getCurrentBuffer();
-            UniMode um = buf->getUnicodeMode();
-            int encoding = buf->getEncoding();
+			bool Runme = true;
 
-			switch(id)
+			while (Runme) {
+
+			UniMode um = buf->getUnicodeMode();
+			int encoding = buf->getEncoding();
+
+			switch (id)
 			{
-				case IDM_FORMAT_CONV2_ANSI:
+			case IDM_FORMAT_CONV2_ANSI:
+			{
+				if (encoding != -1)
 				{
-                    if (encoding != -1)
-                    {
-                        // do nothing
-                        return;
-                    }
-                    else
-                    {
-					    if (um == uni8Bit)
-						    return;
-
-                        // set scintilla to ANSI
-					    idEncoding = IDM_FORMAT_ANSI;
-                    }
-					break;
+					// do nothing
+					return;
 				}
-				case IDM_FORMAT_CONV2_AS_UTF_8:
+				else
 				{
-                    if (encoding != -1)
-                    {
-                        buf->setDirty(true);
-                        buf->setUnicodeMode(uniCookie);
-                        buf->setEncoding(-1);
-                        return;
-                    }
-
-					idEncoding = IDM_FORMAT_AS_UTF_8;
-					if (um == uniCookie)
+					if (um == uni8Bit)
 						return;
 
-					if (um != uni8Bit)
-					{
-						::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
-						_pEditView->execute(SCI_EMPTYUNDOBUFFER);
-						return;
-					}
-
-					break;
+					// set scintilla to ANSI
+					idEncoding = IDM_FORMAT_ANSI;
 				}
-				case IDM_FORMAT_CONV2_UTF_8:
+				break;
+			}
+			case IDM_FORMAT_CONV2_AS_UTF_8:
+			{
+				if (encoding != -1)
 				{
-                    if (encoding != -1)
-                    {
-                        buf->setDirty(true);
-                        buf->setUnicodeMode(uniUTF8);
-                        buf->setEncoding(-1);
-                        return;
-                    }
-
-					idEncoding = IDM_FORMAT_UTF_8;
-					if (um == uniUTF8)
-						return;
-
-					if (um != uni8Bit)
-					{
-						::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
-						_pEditView->execute(SCI_EMPTYUNDOBUFFER);
-						return;
-					}
-					break;
+					buf->setDirty(true);
+					buf->setUnicodeMode(uniCookie);
+					buf->setEncoding(-1);
+					return;
 				}
 
-				case IDM_FORMAT_CONV2_UCS_2BE:
+				idEncoding = IDM_FORMAT_AS_UTF_8;
+				if (um == uniCookie)
+					return;
+
+				if (um != uni8Bit)
 				{
-                    if (encoding != -1)
-                    {
-                        buf->setDirty(true);
-                        buf->setUnicodeMode(uni16BE);
-                        buf->setEncoding(-1);
-                        return;
-                    }
-
-					idEncoding = IDM_FORMAT_UCS_2BE;
-					if (um == uni16BE)
-						return;
-
-					if (um != uni8Bit)
-					{
-						::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
-						_pEditView->execute(SCI_EMPTYUNDOBUFFER);
-						return;
-					}
-					break;
+					::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
+					_pEditView->execute(SCI_EMPTYUNDOBUFFER);
+					return;
 				}
 
-				case IDM_FORMAT_CONV2_UCS_2LE:
+				break;
+			}
+			case IDM_FORMAT_CONV2_UTF_8:
+			{
+				if (encoding != -1)
 				{
-                    if (encoding != -1)
-                    {
-                        buf->setDirty(true);
-                        buf->setUnicodeMode(uni16LE);
-                        buf->setEncoding(-1);
-                        return;
-                    }
-
-					idEncoding = IDM_FORMAT_UCS_2LE;
-					if (um == uni16LE)
-						return;
-					if (um != uni8Bit)
-					{
-						::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
-						_pEditView->execute(SCI_EMPTYUNDOBUFFER);
-						return;
-					}
-					break;
+					buf->setDirty(true);
+					buf->setUnicodeMode(uniUTF8);
+					buf->setEncoding(-1);
+					return;
 				}
+
+				idEncoding = IDM_FORMAT_UTF_8;
+				if (um == uniUTF8)
+					return;
+
+				if (um != uni8Bit)
+				{
+					::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
+					_pEditView->execute(SCI_EMPTYUNDOBUFFER);
+					return;
+				}
+				break;
+			}
+
+			case IDM_FORMAT_CONV2_UCS_2BE:
+			{
+				if (encoding != -1)
+				{
+					buf->setDirty(true);
+					buf->setUnicodeMode(uni16BE);
+					buf->setEncoding(-1);
+					return;
+				}
+
+				idEncoding = IDM_FORMAT_UCS_2BE;
+				if (um == uni16BE) {
+					
+					return;
+				}
+				if (um != uni8Bit)
+				{
+					
+					::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
+					_pEditView->execute(SCI_EMPTYUNDOBUFFER);
+					
+					return;
+				}
+				
+				break;
+			}
+
+			case IDM_FORMAT_CONV2_UCS_2LE:
+			{
+				if (encoding != -1)
+				{
+					buf->setDirty(true);
+					buf->setUnicodeMode(uni16LE);
+					buf->setEncoding(-1);
+					return;
+				}
+
+				idEncoding = IDM_FORMAT_UCS_2LE;
+				if (um == uni16LE)
+					return;
+				if (um != uni8Bit)
+				{
+					::SendMessage(_pPublicInterface->getHSelf(), WM_COMMAND, idEncoding, 0);
+					_pEditView->execute(SCI_EMPTYUNDOBUFFER);
+					return;
+				}
+				break;
+			}
 			}
 
 			if (idEncoding != -1)
@@ -2067,8 +2071,17 @@ void Notepad_plus::command(int id)
 				//Do not free anything, EmptyClipboard does that
 				_pEditView->execute(SCI_EMPTYUNDOBUFFER);
 			}
-			break;
-		}
+			//break;
+
+			this->activateNextDoc(false);
+			buf = _pEditView->getCurrentBuffer();
+			if (buf == first) {
+				Runme = false;
+			}
+}
+break;
+}
+		//THIS IS WHERE THE CONVERT ENCODING IS BEING DONE
 
 		case IDM_SETTING_IMPORTPLUGIN :
         {
@@ -2679,18 +2692,10 @@ void Notepad_plus::command(int id)
 				TCHAR langName[langNameLenMax];
 				::GetMenuString(_mainMenuHandle, id, langName, langNameLenMax, MF_BYCOMMAND);
 				_pEditView->getCurrentBuffer()->setLangType(L_USER, langName);
-				if (_pDocMap)
-				{
-					_pDocMap->setSyntaxHiliting();
-				}
 			}
 			else if ((id >= IDM_LANG_EXTERNAL) && (id <= IDM_LANG_EXTERNAL_LIMIT))
 			{
 				setLanguage((LangType)(id - IDM_LANG_EXTERNAL + L_EXTERNAL));
-				if (_pDocMap)
-				{
-					_pDocMap->setSyntaxHiliting();
-				}
 			}
 			else if ((id >= ID_MACRO) && (id < ID_MACRO_LIMIT))
 			{
